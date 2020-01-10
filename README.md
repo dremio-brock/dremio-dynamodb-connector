@@ -51,3 +51,7 @@ If an operation or function is not specified in the ARP file, then Dremio will h
 2. Take the resulting .jar file in the target folder and put it in the \dremio\jars folder in Dremio
 3. Take the samba Dynamodb JDBC driver and .lic file from (https://www.simba.com/drivers/dynamodb-odbc-jdbc/) and put in in the $DREMIO_HOME/jars/3rdparty folder
 4. Restart Dremio
+
+## Notes
+
+1. Empty tables will not appear due to simba's driver implimentation.
