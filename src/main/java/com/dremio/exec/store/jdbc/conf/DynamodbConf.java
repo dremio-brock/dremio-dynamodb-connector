@@ -22,11 +22,11 @@ import org.hibernate.validator.constraints.NotBlank;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.SourceType;
-import com.dremio.exec.server.SabotContext;
+import com.dremio.options.OptionManager;
+import com.dremio.security.CredentialsService;
 import com.dremio.exec.store.jdbc.CloseableDataSource;
 import com.dremio.exec.store.jdbc.DataSources;
-import com.dremio.exec.store.jdbc.JdbcStoragePlugin;
-import com.dremio.exec.store.jdbc.JdbcStoragePlugin.Config;
+import com.dremio.exec.store.jdbc.JdbcPluginConfig;
 import com.dremio.exec.store.jdbc.dialect.arp.ArpDialect;
 import com.google.common.annotations.VisibleForTesting;
 
@@ -35,7 +35,7 @@ import io.protostuff.Tag;
 /**
  * Configuration for SQLite sources.
  */
-@SourceType(value = "DynamoDB", label = "DynamoDB")
+@SourceType(value = "DynamoDB", label = "DynamoDB", uiConfig = "dynamoarp-layout.json")
 public class DynamodbConf extends AbstractArpConf<DynamodbConf> {
   private static final String ARP_FILENAME = "arp/implementation/dynamodb-arp.yaml";
   private static final ArpDialect ARP_DIALECT =
@@ -62,6 +62,11 @@ public class DynamodbConf extends AbstractArpConf<DynamodbConf> {
   @DisplayMetadata(label = "Region")
   public String region;
 
+  @Tag(5)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Grant External Query access (External Query allows creation of VDS from a Sybase query. Learn more here: https://docs.dremio.com/data-sources/external-queries.html#enabling-external-queries)")
+  public boolean enableExternalQuery = false;
+
   //@NotBlank
   //@Tag(5)
   //@DisplayMetadata(label = "Local Metadata File")
@@ -86,12 +91,13 @@ public class DynamodbConf extends AbstractArpConf<DynamodbConf> {
 
   @Override
   @VisibleForTesting
-  public Config toPluginConfig(SabotContext context) {
-    return JdbcStoragePlugin.Config.newBuilder()
+  public JdbcPluginConfig buildPluginConfig(JdbcPluginConfig.Builder configBuilder, CredentialsService credentialsService, OptionManager optionManager) {
+         return configBuilder.withDialect(getDialect())
         .withDialect(getDialect())
         .withDatasourceFactory(this::newDataSource)
         .clearHiddenSchemas()
         .addHiddenSchema("SYSTEM")
+        .withAllowExternalQuery(enableExternalQuery)
         .build();
   }
 

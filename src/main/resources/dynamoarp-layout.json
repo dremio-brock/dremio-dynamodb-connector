@@ -1,0 +1,50 @@
+{
+  "sourceType": "DynamoDB",
+  "metadataRefresh": {
+    "datasetDiscovery": true
+  },
+  "form": {
+    "tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "layout": "row",
+            "elements": [
+              {
+                "propName": "config.host",
+                "placeholder": "e.g.123.123.123.123",
+                "size": "half",
+                "validate": {
+                  "isRequired": true
+                }
+              },
+              {
+                "propName": "config.region",
+                "placeholder": "e.g. us-west-2",
+                "size": "half",
+                "validate": {
+                  "isRequired": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.enableExternalQuery"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
