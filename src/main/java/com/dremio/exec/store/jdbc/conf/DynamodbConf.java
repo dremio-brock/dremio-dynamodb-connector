@@ -17,17 +17,19 @@ package com.dremio.exec.store.jdbc.conf;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import org.hibernate.validator.constraints.NotBlank;
+import javax.validation.constraints.NotBlank;
 
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.SourceType;
-import com.dremio.options.OptionManager;
-import com.dremio.security.CredentialsService;
 import com.dremio.exec.store.jdbc.CloseableDataSource;
 import com.dremio.exec.store.jdbc.DataSources;
 import com.dremio.exec.store.jdbc.JdbcPluginConfig;
+import com.dremio.exec.store.jdbc.JdbcStoragePlugin;
 import com.dremio.exec.store.jdbc.dialect.arp.ArpDialect;
+import com.dremio.options.OptionManager;
+import com.dremio.security.CredentialsService;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.annotations.VisibleForTesting;
 
 import io.protostuff.Tag;
@@ -35,7 +37,7 @@ import io.protostuff.Tag;
 /**
  * Configuration for SQLite sources.
  */
-@SourceType(value = "DynamoDB", label = "DynamoDB", uiConfig = "dynamoarp-layout.json")
+@SourceType(value = "DynamoDB", label = "DynamoDB", uiConfig = "dynamoarp-layout.json", externalQuerySupported = true)
 public class DynamodbConf extends AbstractArpConf<DynamodbConf> {
   private static final String ARP_FILENAME = "arp/implementation/dynamodb-arp.yaml";
   private static final ArpDialect ARP_DIALECT =
@@ -44,66 +46,50 @@ public class DynamodbConf extends AbstractArpConf<DynamodbConf> {
 
   @NotBlank
   @Tag(1)
-  @DisplayMetadata(label = "Host")
-  public String host;
+  @DisplayMetadata(label = "JDBC Connection String Example:\n" +
+          "jdbc:dynamodb:Host=dynamodb.us-west-1.amazonaws.com;" +
+          "Region=us-west-1;" +
+          "AccessKey=ABCABCABC123ABCABC45;" +
+          "SecretKey=abCD+E1f2Gxhi3J4klmN/OP5QrSTuvwXYzabcdEF")
+  public String jdbcstring;
 
-  @NotBlank
-  @Tag(2)
-  @DisplayMetadata(label = "Access Key")
-  public String accesskey;
-
-  @NotBlank
-  @Tag(3)
-  @DisplayMetadata(label = "Secrect Key")
-  public String secrectkey;
-
-  @NotBlank
-  @Tag(4)
-  @DisplayMetadata(label = "Region")
-  public String region;
-
-  @Tag(5)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Grant External Query access (External Query allows creation of VDS from a Sybase query. Learn more here: https://docs.dremio.com/data-sources/external-queries.html#enabling-external-queries)")
-  public boolean enableExternalQuery = false;
-
-  //@NotBlank
-  //@Tag(5)
-  //@DisplayMetadata(label = "Local Metadata File")
-  //public String localmetadatafile;
 
   @VisibleForTesting
   public String toJdbcConnectionString() {
-    final String host = checkNotNull(this.host, "Missing Host.");
+    final String jdbcstring = checkNotNull(this.jdbcstring, "Missing JDBC Conenction String.");
 
-    final String accesskey = checkNotNull(this.accesskey, "Missing Access Key.");
-
-    final String secrectkey = checkNotNull(this.secrectkey, "Missing Secrect Key.");
-
-    final String region = checkNotNull(this.region, "Missing Region.");
-
-    //final String localmetadatafile = checkNotNull(this.localmetadatafile, "Missing Local Metadata File.");
-
-    //return String.format("jdbc:dynamodb:Host=%s;AccessKey=%s;SecretKey=%s;Region=%s;LocalMetadataFile=%s", host, accesskey, secrectkey, region, localmetadatafile);
-
-    return String.format("jdbc:dynamodb:Host=%s;AccessKey=%s;SecretKey=%s;Region=%s;", host, accesskey, secrectkey, region);
+    return String.format("%s;", jdbcstring);
   }
+
+  @Tag(2)
+  @DisplayMetadata(label = "Maximum idle connections")
+  @NotMetadataImpacting
+  public int maxIdleConns = 8;
+
+  @Tag(3)
+  @DisplayMetadata(label = "Connection idle time (s)")
+  @NotMetadataImpacting
+  public int idleTimeSec = 60;
 
   @Override
   @VisibleForTesting
-  public JdbcPluginConfig buildPluginConfig(JdbcPluginConfig.Builder configBuilder, CredentialsService credentialsService, OptionManager optionManager) {
-         return configBuilder.withDialect(getDialect())
-        .withDialect(getDialect())
-        .withDatasourceFactory(this::newDataSource)
-        .clearHiddenSchemas()
-        .addHiddenSchema("SYSTEM")
-        .withAllowExternalQuery(enableExternalQuery)
-        .build();
+  public JdbcPluginConfig buildPluginConfig(
+          JdbcPluginConfig.Builder configBuilder,
+          CredentialsService credentialsService,
+          OptionManager optionManager
+  ) {
+     return configBuilder.withDialect(getDialect())
+              .withDialect(getDialect())
+              .withDatasourceFactory(this::newDataSource)
+              .clearHiddenSchemas()
+              .addHiddenSchema("SYSTEM")
+              .build();
   }
 
   private CloseableDataSource newDataSource() {
     return DataSources.newGenericConnectionPoolDataSource(DRIVER,
-      toJdbcConnectionString(), null, null, null, DataSources.CommitMode.DRIVER_SPECIFIED_COMMIT_MODE);
+            toJdbcConnectionString(), null, null, null, DataSources.CommitMode.DRIVER_SPECIFIED_COMMIT_MODE,
+            maxIdleConns, idleTimeSec);
   }
 
   @Override
